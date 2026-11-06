@@ -248,7 +248,9 @@ def main():
   REPLAY = bool(int(os.getenv("REPLAY", "0")))
 
   pm = messaging.PubMaster(['vehicleParameters'])
-  sm = messaging.SubMaster(['deviceMotion', 'extrinsicsCalibration', 'carState'], poll='deviceMotion')
+  sm = messaging.SubMaster(['deviceMotion', 'extrinsicsCalibration', 'carState'], poll='deviceMotion',
+                           ignore_alive=['extrinsicsCalibration', 'carState'], ignore_avg_freq=['extrinsicsCalibration', 'carState'],
+                           ignore_valid=['carState'])
 
   params = Params()
   CP = messaging.log_from_bytes(params.get("CarParams", block=True), car.CarParams)
