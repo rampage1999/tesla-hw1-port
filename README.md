@@ -1,3 +1,7 @@
+> **Fork notice — Tesla HW1 port:** this is [rampage1999/tesla-hw1-port](https://github.com/rampage1999/tesla-hw1-port), a fork of [sunnypilot/sunnypilot](https://github.com/sunnyhaibin/sunnypilot) that adds **Tesla HW1 (Model S/X 2012–2016)** support. Branch `tesla-hw1-port` carries the port; companion car code lives in [rampage1999/tesla-hw1-opendbc](https://github.com/rampage1999/tesla-hw1-opendbc).
+>
+> **Read [`README-PORT.md`](README-PORT.md) first** — install steps, platform table, requirements, and the verified deployment status (comma four + Chestnut big-model build).
+
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
 
 ## 🌞 What is sunnypilot?
