@@ -10,7 +10,8 @@ master as a clean single-commit port, then hardened and validated:
   car-interface fuzz for all 9 Tesla platforms, platform configs, docs, FW fingerprint gates
 - **Real-car validated**: Model S (HW1) — FW fingerprint, `teslaLegacy` + `elm327` safeties active,
   clean drives, no vehicleMonitor faults
-- Chestnut companion-compute compatible (big-model bundle verified: "Big Model Ready")
+- **Chestnut companion-compute working**: big-model tinygrad artifacts compiled on-device
+  (`big_driving_tinygrad.pkl` ≈ 763 MiB + warps + dmonitoring), Chestnut detected over USB 3 at 5 Gbps
 
 ## Platforms
 
@@ -51,6 +52,38 @@ installer output).
 - Model S/X (2012–2016) require the external-panda wiring for longitudinal on HW1 (DAS), matching
   the xnor integration this derives from.
 - `MAX_LAT_ACCEL_MEASURED` raised to 3.0 m/s² for the legacy platforms (override.toml).
+- Budget ~15 GB free on `/data` before the first on-device compile; the big-model artifacts alone
+  are ~0.9 GB and the scons tree is large.
+
+## Current deployment status (verified 2026-11-13)
+
+Reference rig: comma four, dongle `5ba8a90b0996b249`, host `comma-13711a46`, sunnypilot
+`2026.003.000`, running from **`/data/tesla-hw1-port/openpilot`** (`/data/continue.sh` launches
+`/data/tesla-hw1-port/launch_openpilot.sh`), offroad.
+
+| Item | State |
+|---|---|
+| Branch / commit | `tesla-hw1-port` @ `cdc1b0f8` (one commit behind branch tip `0556ecb`, which only adds this doc + installer) |
+| Base | sunnypilot `master` `02ef6e4` + Tesla HW1 port commits |
+| `opendbc_repo` | `ae1901e9` (branch `tesla-hw1-port`) — matches the metarepo gitlink |
+| `panda` / `tinygrad_repo` | `8a16e08` / `92b742f` (master) |
+| Panda | comma four internal panda (`cuatro`), offroad `safetyModel=noOutput` |
+| Chestnut | present over USB 3 (5 Gbps), VID `0x3801`, `chestnut_config/comma-13711a46.bin` provisioned |
+| Big model | compiled on-device: `big_driving_tinygrad.pkl` 799,941,965 B, `big_driving_warp_1344x760/1928x1208_tinygrad.pkl`, `driving_tinygrad.pkl` 70 MB, `dmonitoring_model_tinygrad.pkl` 20 MB |
+| Model runner | `ModelRunnerTypeCache=2` (chestnut path cached); `openpilot.sunnypilot.modeld_v2.warmup` runs on boot |
+| Model manager | qcom + chestnut model lists from `sunnypilot/sunnypilot-models` gh-pages (`driving_models_chestnut_v28.json`) |
+| Disk | 75 GB / 89 GB used — **10 % free**, clean up before the next full build |
+
+Notes from that verification:
+
+- The big-model build is reproducible on-device; the earlier "Chestnut PCIe link never trains"
+  blocker on the older `chestnut-ap1` line does **not** apply to this tree — the Chestnut enumerates
+  as a USB 3 device here (`custom 8516b768-CLEAN`, `linkErrorCount=4`).
+- Big-model **runtime engagement during a drive is not yet re-verified** in this snapshot; the
+  device was offroad (ignition off) with only the warmup process active. Next step is an onroad
+  route with logging to confirm the chestnut runner is actually used.
+- The `chestnut-ap1` fork of `openpilot` (older line, `rampage1999/openpilot`) is superseded by
+  this repo and is kept only for reference.
 
 ## Status
 
@@ -59,6 +92,6 @@ keep hands ready. PRs/issues welcome.
 
 ## Layout
 
-- branch `tesla-hw1-port` — sunnypilot master + one port commit (gitlink → tesla-hw1-opendbc)
+- branch `tesla-hw1-port` — sunnypilot master + port commits (gitlink → tesla-hw1-opendbc)
 - `install-tesla-port.sh` — on-device installer (bundle fast-path, GitHub Releases)
 - `out/`-style bundles are published as GitHub Releases; the installer fetches them automatically
