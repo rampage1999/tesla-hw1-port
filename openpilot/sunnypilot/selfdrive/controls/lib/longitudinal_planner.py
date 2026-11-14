@@ -8,11 +8,14 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.cereal import messaging, custom
 from opendbc.car import structs
 from openpilot.common.constants import CV
+from openpilot.common.realtime import DT_MDL
+from opendbc.car.tesla.values import LEGACY_CARS as TESLA_LEGACY_CARS
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
 from openpilot.selfdrive.controls.lib.accel_boost import AccelBoost
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_boost import AccelBoostSP
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.smart_cruise_control import SmartCruiseControl
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.legacy_speed_limit_follow import LegacySpeedLimitFollow
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitResolver
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
@@ -33,6 +36,10 @@ class LongitudinalPlannerSP:
     self.e2e_alerts_helper = E2EAlertsHelper()
     self.accel_boost_sp = AccelBoostSP()
     self.openpilot_longitudinal = CP.openpilotLongitudinalControl
+    # Legacy Tesla: the planner only ever lowers speed through SLA, so a rising
+    # posted limit needs its own raise path.
+    self.legacy_sl_follow = (LegacySpeedLimitFollow()
+                             if CP.brand == "tesla" and CP.carFingerprint in TESLA_LEGACY_CARS else None)
 
     self.output_v_target = 0.
     self.output_a_target = 0.
@@ -55,6 +62,12 @@ class LongitudinalPlannerSP:
     has_speed_limit = self.resolver.speed_limit_valid or self.resolver.speed_limit_last_valid
     self.sla.update(long_enabled, long_override, v_ego, a_ego, v_cruise_cluster, self.resolver.speed_limit,
                     self.resolver.speed_limit_final_last, has_speed_limit, self.resolver.distance, self.events_sp)
+
+    if self.legacy_sl_follow is not None:
+      # Follow the posted limit (Mobileye / Tesla map) when SLC assist is on.
+      # limit_final_last already carries the user's offset.
+      v_cruise, _ = self.legacy_sl_follow.update(v_cruise, self.resolver.speed_limit_final_last,
+                                                 self.sla.enabled, DT_MDL)
 
     targets = {
       LongitudinalPlanSource.cruise: (v_cruise, a_ego),
