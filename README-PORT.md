@@ -13,6 +13,12 @@ master as a clean single-commit port, then hardened and validated:
 - **Chestnut companion-compute working**: big-model tinygrad artifacts compiled on-device
   (`big_driving_tinygrad.pkl` ≈ 763 MiB + warps + dmonitoring), Chestnut detected over USB 3 at 5 Gbps
 
+**Deployed 2026-11-14:** device rebooted onto `9df57722` / opendbc `afede288`. `scons` completed with no
+errors, both ported module sets import cleanly in the running tree, `ModelRunnerTypeCache=2` and the big
+model artifacts are intact. Free space raised from 8.9 GB to 23 GB by removing three stale source trees
+(`/data/openpilot`, `SunnyPilot-TeslaHW1`, `sunnypilot-hw1-chestnut-source/new`) and pruning realdata older
+than 7 days. Nothing has been validated on-road yet — the car was off, so no `carState`/`carParams` came up.
+
 ## Platforms
 
 | Platform | Years/Gens | Safety |
@@ -63,7 +69,7 @@ Reference rig: comma four, dongle `5ba8a90b0996b249`, host `comma-13711a46`, sun
 
 | Item | State |
 |---|---|
-| Branch / commit | `tesla-hw1-port` @ `cdc1b0f8` (one commit behind branch tip `0556ecb`, which only adds this doc + installer) |
+| Branch / commit | `tesla-hw1-port` @ `9df57722` (`opendbc_repo` pinned at `afede288`), deployed and built on-device 2026-11-14 |
 | Base | sunnypilot `master` `02ef6e4` + Tesla HW1 port commits |
 | `opendbc_repo` | `ae1901e9` (branch `tesla-hw1-port`) — matches the metarepo gitlink |
 | `panda` / `tinygrad_repo` | `8a16e08` / `92b742f` (master) |
