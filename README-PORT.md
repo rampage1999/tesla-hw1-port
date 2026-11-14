@@ -92,6 +92,8 @@ instrument-cluster frames, regen-first braking, hands-on steering override, spee
 Mobileye/Tesla maps, and cruise-stalk personalities. The file-by-file plan, target mapping and wave
 order live in [`docs/tesla/BOGPILOT_INTEGRATION.md`](docs/tesla/BOGPILOT_INTEGRATION.md).
 
+**Port progress (2026-11-13):** blind spot, steer-fault gate, posted speed limit, cruise-stalk buttons, hands-on pause + engage steering ramp, comfort-band accel slew and the radard lead glitch filter are ported and unit-tested on review branches. Cluster, SLC raise, curve speed, stalk personalities and the actuator plan still need design/safety work — see the table in the plan.
+
 ## Status
 
 Personal fork, not affiliated with sunnypilot/comma. Safety-critical code — treat as experimental;
