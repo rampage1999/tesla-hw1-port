@@ -15,7 +15,9 @@ from openpilot.common.simple_kalman import KF1D
 
 from opendbc.car import structs
 from opendbc.car.hyundai.values import HyundaiFlags
+from opendbc.car.tesla.values import LEGACY_CARS as TESLA_LEGACY_CARS
 from opendbc.sunnypilot.car.hyundai.values import HyundaiFlagsSP
+from openpilot.sunnypilot.selfdrive.controls.lib.tesla_lead_filter import LegacyLeadGlitchFilter
 
 
 # Default lead acceleration decay set to 50% at 1s
@@ -200,6 +202,9 @@ class RadarD:
     self.tracks: dict[int, Track] = {}
     self.kalman_params = KalmanParams(DT_MDL)
     self.lead_prob_filters = [FirstOrderFilter(0.0, 0.2, DT_MDL) for _ in range(2)]
+    # Legacy Tesla: delay one-frame radar lead glitches by at most one frame
+    self.lead_glitch_filters = ([LegacyLeadGlitchFilter() for _ in range(2)]
+                                if CP.brand == "tesla" and CP.carFingerprint in TESLA_LEGACY_CARS else None)
 
     self.v_ego = 0.0
     self.v_ego_hist = deque([0.0], maxlen=int(round(delay / DT_MDL))+1)
@@ -257,10 +262,19 @@ class RadarD:
         else:
           self.lead_prob_filters[i].update(lead_prob)
 
-      self.radar_state.leadOne = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, self.lead_prob_filters[0].x,
-                                          self.CP, self.CP_SP, low_speed_override=True)
-      self.radar_state.leadTwo = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[1], model_v_ego, self.lead_prob_filters[1].x,
-                                          self.CP, self.CP_SP, low_speed_override=False)
+      lead_one = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, self.lead_prob_filters[0].x,
+                          self.CP, self.CP_SP, low_speed_override=True)
+      lead_two = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[1], model_v_ego, self.lead_prob_filters[1].x,
+                          self.CP, self.CP_SP, low_speed_override=False)
+
+      if self.lead_glitch_filters is not None:
+        lead_one = self.lead_glitch_filters[0].update(lead_one, self.lead_prob_filters[0].x, leads_v3[0].x[0],
+                                                      leads_v3[0].v[0], 0.5)
+        lead_two = self.lead_glitch_filters[1].update(lead_two, self.lead_prob_filters[1].x, leads_v3[1].x[0],
+                                                      leads_v3[1].v[0], 0.5)
+
+      self.radar_state.leadOne = lead_one
+      self.radar_state.leadTwo = lead_two
 
   def publish(self, pm: messaging.PubMaster):
     assert self.radar_state is not None
