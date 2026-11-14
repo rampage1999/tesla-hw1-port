@@ -19,6 +19,22 @@ model artifacts are intact. Free space raised from 8.9 GB to 23 GB by removing t
 (`/data/openpilot`, `SunnyPilot-TeslaHW1`, `sunnypilot-hw1-chestnut-source/new`) and pruning realdata older
 than 7 days. Nothing has been validated on-road yet — the car was off, so no `carState`/`carParams` came up.
 
+## Branches
+
+| Branch | Purpose |
+| --- | --- |
+| `tesla-hw1-port` | Development tip. Everything merged and tested lands here first. |
+| `device-state` | The exact commit the car is running. Only moves when a build is deployed to the device. |
+
+The device checks out `device-state` (tracking `origin/device-state`) so development on
+`tesla-hw1-port` cannot change what the car boots into. `opendbc_repo` mirrors the same split:
+`rampage1999/tesla-hw1-opendbc` `device-state` = `afede288`, the submodule commit pinned by the
+deployed metarepo commit.
+
+Deployed state as of 2026-11-14: metarepo `device-state` = `9df57722`, opendbc `device-state` = `afede288`.
+To move the car forward, merge into `tesla-hw1-port`, build and validate, then fast-forward
+`device-state` to that commit and re-pin the submodule.
+
 ## Platforms
 
 | Platform | Years/Gens | Safety |
