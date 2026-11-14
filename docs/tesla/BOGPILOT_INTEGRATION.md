@@ -101,3 +101,43 @@ groundwork (documented in `todo_HW1.md` but not implemented), Chestnut big-model
 
 BogPilot (BogGyver's Tinkla lineage), Tinkla/Unity by BogGyver, xnor-tech for the HW1 base, and
 sunnypilot/comma for the upstream stack. BogPilot is MIT-licensed; keep attribution when porting.
+
+## Progress (2026-11-13)
+
+Ported and unit-tested; each lives on its own branch so it can be reviewed and merged separately.
+
+| Feature | Branch | Commit | Tests |
+|---|---|---|---|
+| Blind-spot latch (checksum left out, see below) | `tesla-hw1-opendbc` `bsm-legacy-hold` | `b1b71bee` | 7 |
+| Steer-fault gate (latched HANDS_ON / HIGH_ANGLE_REQ benign) | `tesla-hw1-opendbc` `bogpilot-wave1` | `eb86fba9` | included in 11 |
+| Posted speed limit (Mobileye fused -> GTW map limit) | `bogpilot-wave1` | `eb86fba9` | 11 |
+| Cruise-stalk buttons (cancel / resume / set) | `bogpilot-wave1` | `eb86fba9` | 11 |
+| Hands-on pause (HSO) + engage steering ramp | `bogpilot-wave2` | `58331f00` | 13 |
+| Comfort-band accel slew (regen-first feel) | `bogpilot-wave3` | `6810d4a3` | 14 |
+| Radar lead glitch filter | `tesla-hw1-port` `bogpilot-lead-filter` | `0e1ee664` | 8 |
+
+`opendbc/car/tesla/tests/` is 56 tests green as of `bogpilot-wave3`; the radard filter suite is 8 green.
+
+### Notes on the ports
+
+- **Blind spot**: our legacy CarState never set the flags at all. BogPilot's DAS checksum gate is
+  *not* ported — `CANPacker` auto-fills counter/checksum bytes, so a pack-based check would be
+  self-referential. Doing it properly needs a hand-rolled bit packer (their `cluster.py` has one).
+- **Regen-first braking**: the comfort-brake constant (`COMFORT_BRAKE = 2.5` in `long_mpc.py`) is
+  **dead code in this tree** — `get_lead0/get_lead1` have no callers, the acados model owns the lead
+  cost. So the port is the CarController-side accel slew (`long_smooth.py`), which is where AP1's
+  friction-only pedal behaviour actually shows up. The `DAS_jerkMin/Max` narrowing is ported as a
+  class (`Ap1JerkLimit`) but **not wired**: the legacy packer already ramps jerk fields itself.
+- **Throttle cap**: this tree has no `allowThrottle` planner flag (`gasPressProbs` is only used by
+  `accel_boost`), so there is nothing to port onto. That needs a planner feature first.
+
+### Still to do
+
+| Feature | Blocker |
+|---|---|
+| Instrument cluster (`0x399` / `0x389` / `0x239`) | Needs the frame packer plus a **panda `tesla_legacy.h` forward-hook drop rule** (drop stock copy while openpilot TX is recent). Safety-code change: must be device-tested against a live cluster, never bundled with a planner change. |
+| SLC raise (limit+offset from Mobileye/Tesla maps) | sunnypilot already has SLC + resolver + assist; needs the AP1 limit sources wired into `speed_limit_assist` and a raise policy that does not fight it. |
+| Curve speed (reach target by the curve) | sunnypilot's `SmartCruiseControl` already slows for curves; BogPilot pre-brakes to arrive at the target. Needs CSC internals study before touching. |
+| Stalk personalities / follow distance | sunnypilot exposes 3 personalities, BogPilot maps 1-7 on the stalk. Design decision first: extend profiles or map onto the existing three. |
+| Actuator plan (no steering frame while disengaged) | Our controller already packs conditionally; the interceptor behaviour depends on panda semantics that need verification on the device. |
+
