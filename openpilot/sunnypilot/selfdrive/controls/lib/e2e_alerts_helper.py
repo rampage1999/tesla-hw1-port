@@ -57,7 +57,6 @@ class E2EAlertsHelper:
 
   def update_alert_trigger(self, sm: messaging.SubMaster):
     CS = sm['carState']
-    CC = sm['carControl']
 
     model_x = sm['modelV2'].position.x
     max_idx = len(model_x) - 1
@@ -71,7 +70,8 @@ class E2EAlertsHelper:
       self.last_moving_frame = self.frame
     recent_moving = self.last_moving_frame == -1 or (self.frame - self.last_moving_frame) * DT_MDL < 2.0
 
-    self.allowed = not moving and not CS.gasPressed and not CC.enabled and not recent_moving
+    # Engaged or not: a green light matters in both cases (OP will not pull away on its own).
+    self.allowed = not moving and not CS.gasPressed and not recent_moving
 
     # Green Light Alert
     green_light_trigger = False
