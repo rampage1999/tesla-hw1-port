@@ -40,34 +40,12 @@ sound_list_sp: dict[int, tuple[str, int | None, float]] = {
   # AudibleAlertSP, file name, play count (none for infinite)
   AudibleAlertSP.promptSingleLow: ("prompt_single_low.wav", 1, MAX_VOLUME),
   AudibleAlertSP.promptSingleHigh: ("prompt_single_high.wav", 1, MAX_VOLUME),
+  AudibleAlertSP.greenLightChime: ("green_light.wav", 1, MAX_VOLUME),
 }
 
 
-def green_light_chime() -> np.ndarray:
-  """Bright rising triad for the green-light / e2e notification chime.
-
-  Synthesized at load time so the sound ships without a binary asset.
-  Frequencies sit away from the single-tone engage/disengage beeps.
-  """
-  notes = ((880.00, 0.00), (1108.73, 0.11), (1318.51, 0.22))
-  duration, decay = 0.85, 0.085
-  n = int(SAMPLE_RATE * duration)
-  t_all = np.arange(n, dtype=np.float32) / SAMPLE_RATE
-  out = np.zeros(n, dtype=np.float32)
-  for freq, start in notes:
-    i0 = int(start * SAMPLE_RATE)
-    t = t_all[i0:] - start
-    env = np.exp(-t / decay) * (1.0 - np.exp(-t / 0.004))  # soft attack, bell-like decay
-    tone = np.sin(2 * np.pi * freq * t) + 0.22 * np.sin(4 * np.pi * freq * t) + 0.06 * np.sin(6 * np.pi * freq * t)
-    out[i0:] += (0.55 * env * tone).astype(np.float32)
-  peak = float(np.max(np.abs(out)))
-  return (out * (0.85 / peak)).astype(np.float32)
-
-
-synth_list: dict[int, tuple] = {
-  # AudibleAlertSP, generator, play count (none for infinite), volume
-  AudibleAlertSP.greenLightChime: (green_light_chime, 1, MAX_VOLUME),
-}
+# reserved for alerts synthesized at load time instead of shipping an asset
+synth_list: dict[int, tuple] = {}
 
 sound_list: dict[int, tuple[str, int | None, float]] = {
   # AudibleAlert, file name, play count (none for infinite)
