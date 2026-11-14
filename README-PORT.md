@@ -85,6 +85,13 @@ Notes from that verification:
 - The `chestnut-ap1` fork of `openpilot` (older line, `rampage1999/openpilot`) is superseded by
   this repo and is kept only for reference.
 
+## Porting BogPilot features
+
+BogPilot (FrogPilot-based AP1 fork) has features worth bringing over: native blind-spot hold,
+instrument-cluster frames, regen-first braking, hands-on steering override, speed-limit raise from
+Mobileye/Tesla maps, and cruise-stalk personalities. The file-by-file plan, target mapping and wave
+order live in [`docs/tesla/BOGPILOT_INTEGRATION.md`](docs/tesla/BOGPILOT_INTEGRATION.md).
+
 ## Status
 
 Personal fork, not affiliated with sunnypilot/comma. Safety-critical code — treat as experimental;
