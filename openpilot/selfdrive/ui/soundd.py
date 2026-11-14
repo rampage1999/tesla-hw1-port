@@ -42,6 +42,33 @@ sound_list_sp: dict[int, tuple[str, int | None, float]] = {
   AudibleAlertSP.promptSingleHigh: ("prompt_single_high.wav", 1, MAX_VOLUME),
 }
 
+
+def green_light_chime() -> np.ndarray:
+  """Bright rising triad for the green-light / e2e notification chime.
+
+  Synthesized at load time so the sound ships without a binary asset.
+  Frequencies sit away from the single-tone engage/disengage beeps.
+  """
+  notes = ((880.00, 0.00), (1108.73, 0.11), (1318.51, 0.22))
+  duration, decay = 0.85, 0.085
+  n = int(SAMPLE_RATE * duration)
+  t_all = np.arange(n, dtype=np.float32) / SAMPLE_RATE
+  out = np.zeros(n, dtype=np.float32)
+  for freq, start in notes:
+    i0 = int(start * SAMPLE_RATE)
+    t = t_all[i0:] - start
+    env = np.exp(-t / decay) * (1.0 - np.exp(-t / 0.004))  # soft attack, bell-like decay
+    tone = np.sin(2 * np.pi * freq * t) + 0.22 * np.sin(4 * np.pi * freq * t) + 0.06 * np.sin(6 * np.pi * freq * t)
+    out[i0:] += (0.55 * env * tone).astype(np.float32)
+  peak = float(np.max(np.abs(out)))
+  return (out * (0.85 / peak)).astype(np.float32)
+
+
+synth_list: dict[int, tuple] = {
+  # AudibleAlertSP, generator, play count (none for infinite), volume
+  AudibleAlertSP.greenLightChime: (green_light_chime, 1, MAX_VOLUME),
+}
+
 sound_list: dict[int, tuple[str, int | None, float]] = {
   # AudibleAlert, file name, play count (none for infinite)
   AudibleAlert.engage: ("engage.wav", 1, MAX_VOLUME),
@@ -90,6 +117,7 @@ class Soundd(QuietMode):
 
   def load_sounds(self):
     self.loaded_sounds: dict[int, np.ndarray] = {}
+    self.play_counts: dict[int, int | None] = {}
 
     # Load all sounds
     for sound in sound_list:
@@ -103,12 +131,19 @@ class Soundd(QuietMode):
         length = wavefile.getnframes()
         self.loaded_sounds[sound] = np.frombuffer(wavefile.readframes(length), dtype=np.int16).astype(np.float32) / (2**16/2)
 
+      self.play_counts[sound] = play_count
+
+    # Synthesized sounds (no asset file)
+    for sound, (generator, play_count, volume) in synth_list.items():
+      self.loaded_sounds[sound] = generator()
+      self.play_counts[sound] = play_count
+
   def get_sound_data(self, frames): # get "frames" worth of data from the current alert sound, looping when required
 
     ret = np.zeros(frames, dtype=np.float32)
 
     if self.should_play_sound(self.current_alert):
-      num_loops = sound_list[self.current_alert][1]
+      num_loops = self.play_counts[self.current_alert]
       sound_data = self.loaded_sounds[self.current_alert]
       written_frames = 0
 
@@ -138,7 +173,7 @@ class Soundd(QuietMode):
   def update_alert(self, new_alert):
     current_alert_played_once = self.current_alert == AudibleAlert.none or self.current_sound_frame >= len(self.loaded_sounds[self.current_alert])
     # let looping sounds finish the current loop instead of cutting off mid tone
-    if new_alert == AudibleAlert.none and self.current_alert != AudibleAlert.none and sound_list[self.current_alert][1] is None:
+    if new_alert == AudibleAlert.none and self.current_alert != AudibleAlert.none and self.play_counts[self.current_alert] is None:
       if current_alert_played_once:
         self.pending_stop = True
       else:
