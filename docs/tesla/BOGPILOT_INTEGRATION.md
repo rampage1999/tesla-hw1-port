@@ -108,14 +108,14 @@ Ported and unit-tested; each lives on its own branch so it can be reviewed and m
 
 | Feature | Branch | Commit | Tests |
 |---|---|---|---|
-| Blind-spot latch (checksum left out, see below) | `tesla-hw1-opendbc` `bsm-legacy-hold` | `b1b71bee` | 7 |
-| Steer-fault gate (latched HANDS_ON / HIGH_ANGLE_REQ benign) | `tesla-hw1-opendbc` `bogpilot-wave1` | `eb86fba9` | included in 11 |
-| Posted speed limit (Mobileye fused -> GTW map limit) | `bogpilot-wave1` | `eb86fba9` | 11 |
-| Cruise-stalk buttons (cancel / resume / set) | `bogpilot-wave1` | `eb86fba9` | 11 |
-| Hands-on pause (HSO) + engage steering ramp | `bogpilot-wave2` | `58331f00` | 13 |
-| Comfort-band accel slew (regen-first feel) | `bogpilot-wave3` | `6810d4a3` | 14 |
-| Radar lead glitch filter | `tesla-hw1-port` `bogpilot-lead-filter` | `0e1ee664` | 8 |
-| Speed-limit follow (raise/lower cruise on sign change) | `tesla-hw1-port` `bogpilot-slc-follow` | `e9bec87d` | 9 |
+| Blind-spot latch (checksum left out, see below) | `tesla-hw1-opendbc` `bsm-legacy-hold` | `ab34e41d` | 7 |
+| Steer-fault gate (latched HANDS_ON / HIGH_ANGLE_REQ benign) | `tesla-hw1-opendbc` `bogpilot-wave1` | `40bb1dd4` | included in 11 |
+| Posted speed limit (Mobileye fused -> GTW map limit) | `bogpilot-wave1` | `40bb1dd4` | 11 |
+| Cruise-stalk buttons (cancel / resume / set) | `bogpilot-wave1` | `40bb1dd4` | 11 |
+| Hands-on pause (HSO) + engage steering ramp | `bogpilot-wave2` | `89766ea2` | 13 |
+| Comfort-band accel slew (regen-first feel) | `bogpilot-wave3` | `afede288` | 14 |
+| Radar lead glitch filter | `tesla-hw1-port` `bogpilot-lead-filter` | `104aa827` | 8 |
+| Speed-limit follow (raise/lower cruise on sign change) | `tesla-hw1-port` `bogpilot-slc-follow` | `8369199a` | 9 |
 
 `opendbc/car/tesla/tests/` is 56 tests green as of `bogpilot-wave3`; the radard filter suite is 8 green.
 
@@ -144,6 +144,16 @@ set-speed confirmation runs through the PCM/cluster path an AP1 car does not hav
 - Any manual set-speed change resets the base, so the stalk always wins.
 - **Depends on** the opendbc `bogpilot-wave1` speed-limit source (`CarStateSP.speedLimit` from
   Mobileye / GTW map). Without that merge the follow path has no limit to follow.
+
+### Merge status
+
+The train is merged: `tesla-hw1-opendbc` `tesla-hw1-port` = `afede288`, and the metarepo
+`tesla-hw1-port` = `f809fb46` pins that commit (`opendbc_repo` gitlink = `afede288`). The review
+branches (`bsm-legacy-hold`, `bogpilot-wave1/2/3`, `bogpilot-lead-filter`, `bogpilot-slc-follow`) are
+kept for history but the branch tip is now the buildable one.
+
+Tests at the merge tip: **56 passed** in `opendbc/car/tesla/tests/` (run from the pinned submodule) and
+**17 passed** across the radard lead-filter and speed-limit-follow suites.
 
 ### Still to do
 
