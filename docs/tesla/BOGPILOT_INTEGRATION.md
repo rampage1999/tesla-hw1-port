@@ -115,6 +115,7 @@ Ported and unit-tested; each lives on its own branch so it can be reviewed and m
 | Hands-on pause (HSO) + engage steering ramp | `bogpilot-wave2` | `58331f00` | 13 |
 | Comfort-band accel slew (regen-first feel) | `bogpilot-wave3` | `6810d4a3` | 14 |
 | Radar lead glitch filter | `tesla-hw1-port` `bogpilot-lead-filter` | `0e1ee664` | 8 |
+| Speed-limit follow (raise/lower cruise on sign change) | `tesla-hw1-port` `bogpilot-slc-follow` | `e9bec87d` | 9 |
 
 `opendbc/car/tesla/tests/` is 56 tests green as of `bogpilot-wave3`; the radard filter suite is 8 green.
 
@@ -130,6 +131,19 @@ Ported and unit-tested; each lives on its own branch so it can be reviewed and m
   class (`Ap1JerkLimit`) but **not wired**: the legacy packer already ramps jerk fields itself.
 - **Throttle cap**: this tree has no `allowThrottle` planner flag (`gasPressProbs` is only used by
   `accel_boost`), so there is nothing to port onto. That needs a planner feature first.
+
+### Speed-limit follow — how it works and what it depends on
+
+`speed_limit_follow` sits in the planner, not in SLA, because the planner selects
+`min(cruise, sccVision, sccMap, speedLimitAssist)` — SLA can only ever lower the target, and its
+set-speed confirmation runs through the PCM/cluster path an AP1 car does not have.
+
+- Raises **and** lowers the planner cruise target to `resolver.speed_limit_final_last`
+  (limit + your SLC offset) when `SpeedLimitMode = assist`.
+- New limit must persist **2 s** and differ by at least **1 mph**; limits below 5 mph are ignored.
+- Any manual set-speed change resets the base, so the stalk always wins.
+- **Depends on** the opendbc `bogpilot-wave1` speed-limit source (`CarStateSP.speedLimit` from
+  Mobileye / GTW map). Without that merge the follow path has no limit to follow.
 
 ### Still to do
 
