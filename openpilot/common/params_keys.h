@@ -294,6 +294,12 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SmartCruiseControlMap", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"SmartCruiseControlVision", {PERSISTENT | BACKUP, BOOL, "0"}},
 
+    // Tesla curve speed controller
+    {"TeslaCurveSpeedController", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"CurvatureData", {PERSISTENT | BACKUP, JSON}},
+    {"CalibratedLateralAcceleration", {PERSISTENT | BACKUP, FLOAT, "2.0"}},
+    {"CalibrationProgress", {PERSISTENT | BACKUP, FLOAT, "0.0"}},
+
     // Torque lateral control custom params
     {"CustomTorqueParams", {PERSISTENT | BACKUP , BOOL}},
     {"EnforceTorqueControl", {PERSISTENT | BACKUP, BOOL}},
