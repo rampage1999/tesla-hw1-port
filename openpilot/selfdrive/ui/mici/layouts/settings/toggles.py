@@ -21,6 +21,12 @@ class TogglesLayoutMici(NavScroller):
                                                                "Use the steering wheel distance button on supported cars.")
     self._initial_cruise_speed = InitialCruiseSpeedButton()
     self._initial_cruise_speed.set_visible(lambda: ui_state.CP is not None and ui_state.has_longitudinal_control and not ui_state.CP.pcmCruise)
+    curve_speed_toggle = BigParamControl("curve speed controller", "TeslaCurveSpeedController",
+                                         description="Learns your cornering limit and brakes ahead of a curve to reach the target speed by the curve.\n" +
+                                                     "Only lowers speed; never raises your set speed.\n" +
+                                                     "Tesla only.")
+    curve_speed_toggle.set_visible(lambda: ui_state.CP is not None and ui_state.CP.brand == "tesla")
+    curve_speed_toggle.set_enabled(lambda: not ui_state.engaged)
     is_metric_toggle = BigToggle("use metric units", initial_state=ui_state.params.get_bool("IsMetric"), toggle_callback=self._on_metric_toggle)
     ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled",
                                  description="Warn when you drift across a detected lane line.\n" +
@@ -41,6 +47,7 @@ class TogglesLayoutMici(NavScroller):
     self._scroller.add_widgets([
       self._personality_toggle,
       self._initial_cruise_speed,
+      curve_speed_toggle,
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
@@ -52,6 +59,7 @@ class TogglesLayoutMici(NavScroller):
     # Toggle lists
     self._refresh_toggles = (
       ("IsMetric", is_metric_toggle),
+      ("TeslaCurveSpeedController", curve_speed_toggle),
       ("IsLdwEnabled", ldw_toggle),
       ("AlwaysOnDM", always_on_dm_toggle),
       ("RecordFront", record_front),
