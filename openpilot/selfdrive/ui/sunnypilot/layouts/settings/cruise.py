@@ -57,6 +57,13 @@ class CruiseLayout(Widget):
       description=tr("Use map data to estimate the appropriate speed to drive through turns ahead."),
       param="SmartCruiseControlMap")
 
+    self.curve_speed_toggle = toggle_item_sp(
+      title=tr("Curve Speed Controller (Tesla)"),
+      description=tr("Learns your cornering limit and brakes ahead of a curve to reach the target speed by the curve. "
+                     "Only lowers speed; never raises your set speed."),
+      param="TeslaCurveSpeedController",
+      enabled=lambda: ui_state.CP is not None and ui_state.CP.brand == "tesla")
+
     self.accel_boost_toggle = toggle_item_sp(
       title=tr("Acceleration Boost"),
       description=tr("Adds a small push on top of sunnypilot's own acceleration, stronger in Aggressive and gentler in Relaxed. " +
@@ -92,6 +99,7 @@ class CruiseLayout(Widget):
       self.icbm_toggle,
       self.scc_v_toggle,
       self.scc_m_toggle,
+      self.curve_speed_toggle,
       self.accel_boost_toggle,
       self.custom_acc_toggle,
       self.custom_acc_short_increment,
@@ -144,6 +152,7 @@ class CruiseLayout(Widget):
           self.icbm_toggle.show_description(True)
 
       self.accel_boost_toggle.action_item.set_enabled(has_long)
+      self.curve_speed_toggle.action_item.set_enabled(ui_state.CP is not None and ui_state.CP.brand == "tesla")
 
       if has_long or has_icbm:
         self.custom_acc_toggle.action_item.set_enabled(((has_long and not ui_state.CP.pcmCruise) or has_icbm) and ui_state.is_offroad())
@@ -161,6 +170,7 @@ class CruiseLayout(Widget):
       has_icbm = has_long = False
       self.icbm_toggle.action_item.set_enabled(False)
       self.accel_boost_toggle.action_item.set_enabled(False)
+      self.curve_speed_toggle.action_item.set_enabled(False)
       self.icbm_toggle.set_description(tr(ONROAD_ONLY_DESCRIPTION))
 
     show_custom_acc_desc = False

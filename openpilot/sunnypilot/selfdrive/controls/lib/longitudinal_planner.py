@@ -18,6 +18,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.smart_crui
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.legacy_speed_limit_follow import LegacySpeedLimitFollow
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitResolver
+from openpilot.sunnypilot.selfdrive.controls.lib.tesla_curve_speed import TeslaCurveSpeedController
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.models.helpers import get_active_bundle
 
@@ -40,11 +41,15 @@ class LongitudinalPlannerSP:
     # posted limit needs its own raise path.
     self.legacy_sl_follow = (LegacySpeedLimitFollow()
                              if CP.brand == "tesla" and CP.carFingerprint in TESLA_LEGACY_CARS else None)
+    # Tesla-only curve speed controller: caps v_cruise and contributes a look-ahead
+    # brake candidate. Non-Tesla and non-legacy cars stay inactive.
+    self.curve_speed = TeslaCurveSpeedController(CP)
 
     self.output_v_target = 0.
     self.output_a_target = 0.
 
-  def update_targets(self, sm: messaging.SubMaster, v_ego: float, a_ego: float, v_cruise: float) -> tuple[float, float]:
+  def update_targets(self, sm: messaging.SubMaster, v_ego: float, a_ego: float, v_cruise: float,
+                     reset_state: bool = False) -> tuple[float, float]:
     CS = sm['carState']
     v_cruise_cluster_kph = min(CS.vCruiseCluster, V_CRUISE_MAX)
     v_cruise_cluster = v_cruise_cluster_kph * CV.KPH_TO_MS
@@ -68,6 +73,10 @@ class LongitudinalPlannerSP:
       # limit_final_last already carries the user's offset.
       v_cruise, _ = self.legacy_sl_follow.update(v_cruise, self.resolver.speed_limit_final_last,
                                                  self.sla.enabled, DT_MDL)
+
+    # Tesla curve speed: only lowers the cruise candidate; the brake is a separate
+    # candidate appended by the base planner.
+    v_cruise = self.curve_speed.update(sm, v_ego, v_cruise, reset_state=reset_state)
 
     targets = {
       LongitudinalPlanSource.cruise: (v_cruise, a_ego),

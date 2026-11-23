@@ -78,7 +78,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
 
     # Get new v_cruise and a_target from Smart Cruise Control and Speed Limit Assist
-    v_cruise, self.output_a_target = LongitudinalPlannerSP.update_targets(self, sm, self.v_desired_filter.x, self.output_a_target, v_cruise)
+    v_cruise, self.output_a_target = LongitudinalPlannerSP.update_targets(self, sm, self.v_desired_filter.x, self.output_a_target, v_cruise, reset_state)
 
     self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality)
     if self.CP.openpilotLongitudinalControl:
@@ -114,6 +114,9 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     candidates = [(output_a_target_mpc, self.mpc.source, output_should_stop_mpc),
                   (self.a_cruise, LongitudinalPlanSource.cruise, cruise_should_stop),
                   (output_a_target_e2e, LongitudinalPlanSource.e2e, output_should_stop_e2e)]
+    # Tesla curve brake: an extra min() candidate that can only add braking.
+    if self.curve_speed.available and self.curve_speed.a_brake < 0.0:
+      candidates.append((self.curve_speed.a_brake, LongitudinalPlanSource.curveSpeed, False))
 
     output_a_target, self.mpc.source, _ = min(candidates, key=lambda c: c[0])
     self.output_should_stop = any(should_stop for _, _, should_stop in candidates)
