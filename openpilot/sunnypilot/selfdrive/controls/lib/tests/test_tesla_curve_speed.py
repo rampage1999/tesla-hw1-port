@@ -125,7 +125,7 @@ def _fake_sm(v_ego=20.0, curvature=0.01, enabled=True):
     position=types.SimpleNamespace(x=x),
     velocity=types.SimpleNamespace(x=v),
     orientationRate=types.SimpleNamespace(z=yaw),
-    meta=types.SimpleNamespace(laneChangeState=0),
+    meta=types.SimpleNamespace(laneChangeState="off"),
   )
   cs = types.SimpleNamespace(leftBlinker=False, rightBlinker=False, standstill=False)
   lead = types.SimpleNamespace(present=False, dRel=0.0, vRel=0.0)

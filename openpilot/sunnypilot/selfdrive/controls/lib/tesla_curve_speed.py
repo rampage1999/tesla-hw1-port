@@ -601,7 +601,7 @@ class TeslaCurveSpeedController:
     t, x, v, yaw = path
     CS = sm["carState"]
     try:
-      lane_change = int(sm["modelV2"].meta.laneChangeState) != 0
+      lane_change = str(sm["modelV2"].meta.laneChangeState) != "off"
     except (AttributeError, KeyError, TypeError):
       return self._inactive(v_cruise, reset_state)
     blinker = bool(_get(CS, "leftBlinker", False) or _get(CS, "rightBlinker", False) or lane_change)
