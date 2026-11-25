@@ -116,6 +116,7 @@ Ported and unit-tested; each lives on its own branch so it can be reviewed and m
 | Comfort-band accel slew (regen-first feel) | `bogpilot-wave3` | `afede288` | 14 |
 | Radar lead glitch filter | `tesla-hw1-port` `bogpilot-lead-filter` | `104aa827` | 8 |
 | Speed-limit follow (raise/lower cruise on sign change) | `tesla-hw1-port` `bogpilot-slc-follow` | `8369199a` | 9 |
+| Curve speed (look-ahead brake on sunnypilot CSC) + comfort arbitration | `tesla-hw1-port` `tesla-curve-speed` | pending | 32 |
 
 `opendbc/car/tesla/tests/` is 56 tests green as of `bogpilot-wave3`; the radard filter suite is 8 green.
 
@@ -161,7 +162,7 @@ Tests at the merge tip: **56 passed** in `opendbc/car/tesla/tests/` (run from th
 |---|---|
 | Instrument cluster (`0x399` / `0x389` / `0x239`) | Needs the frame packer plus a **panda `tesla_legacy.h` forward-hook drop rule** (drop stock copy while openpilot TX is recent). Safety-code change: must be device-tested against a live cluster, never bundled with a planner change. |
 | SLC raise (limit+offset from Mobileye/Tesla maps) | sunnypilot already has SLC + resolver + assist; needs the AP1 limit sources wired into `speed_limit_assist` and a raise policy that does not fight it. |
-| Curve speed (reach target by the curve) | sunnypilot's `SmartCruiseControl` already slows for curves; BogPilot pre-brakes to arrive at the target. Needs CSC internals study before touching. |
+| Curve speed (reach target by the curve) | Ported on `tesla-curve-speed` as a look-ahead brake candidate using sunnypilot's CSC target, with a comfort arbiter. Unit-tested; needs an AP1 rlog replay and an on-road run before enabling. |
 | Stalk personalities / follow distance | sunnypilot exposes 3 personalities, BogPilot maps 1-7 on the stalk. Design decision first: extend profiles or map onto the existing three. |
 | Actuator plan (no steering frame while disengaged) | Our controller already packs conditionally; the interceptor behaviour depends on panda semantics that need verification on the device. |
 

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+import math
+
 import numpy as np
 
 import openpilot.cereal.messaging as messaging
 from opendbc.car.interfaces import ACCEL_MIN, ACCEL_MAX
+from opendbc.car.tesla.values import LEGACY_CARS as TESLA_LEGACY_CARS
 from openpilot.common.constants import CV
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import DT_MDL
@@ -16,6 +19,8 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
 
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlannerSP
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.curve_arbitration import CurveArbiter
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.tesla_curve_brake import TeslaCurveBrake
 
 J_CRUISE_VALS = [1.6, 1.2, 0.8, 0.6]
 J_CRUISE_BP = [0., 10.0, 25., 40.]
@@ -39,6 +44,13 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self.fcw = False
     self.dt = dt
     self.accel_boost = AccelBoost()
+
+    # Legacy Tesla: look-ahead curve brake on top of sunnypilot's CSC target.
+    # It can only add braking; stock ACC and every other car are untouched.
+    self.curve_brake = (TeslaCurveBrake(dt)
+                        if CP.brand == "tesla" and CP.carFingerprint in TESLA_LEGACY_CARS
+                        and CP.openpilotLongitudinalControl else None)
+    self.curve_arbiter = CurveArbiter(dt) if self.curve_brake is not None else None
 
     self.v_desired_filter = FirstOrderFilter(init_v, 2.0, self.dt)
     self.a_cruise = init_a
@@ -115,11 +127,71 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
                   (self.a_cruise, LongitudinalPlanSource.cruise, cruise_should_stop),
                   (output_a_target_e2e, LongitudinalPlanSource.e2e, output_should_stop_e2e)]
 
-    output_a_target, self.mpc.source, _ = min(candidates, key=lambda c: c[0])
+    a_curve = self._update_curve_brake(sm, v_ego, reset_state, long_control_off)
+    if a_curve < 0.0:
+      candidates.append((a_curve, LongitudinalPlanSource.sccVision, False))
+
+    if self.curve_arbiter is not None:
+      named = [(self._candidate_name(source), a) for a, source, _ in candidates]
+      output_a_target, winner, _ = self.curve_arbiter.arbitrate(named, self.dt, reset_state)
+      self.mpc.source = self._source_for_winner(winner)
+    else:
+      output_a_target, self.mpc.source, _ = min(candidates, key=lambda c: c[0])
     self.output_should_stop = any(should_stop for _, _, should_stop in candidates)
     self.output_a_target = np.clip(output_a_target, ACCEL_MIN, ACCEL_MAX)
 
     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.output_a_target + a_prev) / 2.0
+
+  def _model_path(self, sm):
+    """(t, x, v, yaw_rate) of IDX_N finite model nodes, or None when unusable."""
+    try:
+      if not (sm.alive['modelV2'] and sm.valid['modelV2']):
+        return None
+      model = sm['modelV2']
+      n = ModelConstants.IDX_N
+      x = [float(v) for v in model.position.x]
+      v = [float(v) for v in model.velocity.x]
+      yaw = [float(v) for v in model.orientationRate.z]
+    except (AttributeError, KeyError, TypeError, ValueError):
+      return None
+    if len(x) != n or len(v) != n or len(yaw) != n:
+      return None
+    if not all(math.isfinite(val) for val in (*x, *v, *yaw)):
+      return None
+    return ModelConstants.T_IDXS[:n], x, v, yaw
+
+  def _update_curve_brake(self, sm, v_ego, reset_state, long_control_off):
+    if self.curve_brake is None:
+      return 0.0
+    if reset_state or long_control_off:
+      self.curve_brake.reset()
+      self.curve_arbiter.reset(self.a_cruise)
+      return 0.0
+    path = self._model_path(sm)
+    if path is None:
+      return self.curve_brake.update(False, v_ego, [], [], [], [])
+    # Only while CSC is actively limiting speed and openpilot is engaged.
+    active = bool(self.scc.vision.is_active and sm['selfdriveState'].enabled)
+    return self.curve_brake.update(active, v_ego, *path)
+
+  @staticmethod
+  def _candidate_name(source):
+    if source == LongitudinalPlanSource.cruise:
+      return "cruise"
+    if source == LongitudinalPlanSource.sccVision:
+      return "curve"
+    if source == LongitudinalPlanSource.e2e:
+      return "e2e"
+    return "mpc"
+
+  def _source_for_winner(self, winner):
+    if winner == "cruise":
+      return LongitudinalPlanSource.cruise
+    if winner == "curve":
+      return LongitudinalPlanSource.sccVision
+    if winner == "e2e":
+      return LongitudinalPlanSource.e2e
+    return self.mpc.source
 
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')
